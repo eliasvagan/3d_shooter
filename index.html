@@ -6,48 +6,74 @@
     <style>
         body { margin: 0; }
         canvas {
-            /*
-            width: 100%; height: 100%;
-            */
-            background-color: dimgray}
+
+            width: 100%;
+            height: 100%;
+            position: fixed;
+            top: 0;
+            left:0;
+
+        }
 
     </style>
 </head>
 <body>
 
-<canvas id="canv" width="600" height="400"></canvas>
+<canvas id="canv"></canvas>
+<canvas id="guiCanvas"></canvas>
 
 <script src="js/three.js"></script>
 <script src="js/elias_gui.js"></script>
+<script src="js/three.module.js" type="module"></script>
 <script>
     const canv = document.getElementById("canv");
+    const guiCanvas = document.getElementById("guiCanvas");
+
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera( 120, canv.width/canv.height, 0.1, 1000 );
-    const renderer = new THREE.WebGLRenderer(canv);
+    const camera = new THREE.PerspectiveCamera( 75, window.innerWidth/window.innerHeight, 0.1, 1000 );
+    const renderer = new THREE.WebGLRenderer({canvas:canv});
 
-    renderer.setSize( canv.width, canv.height );
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    guiCanvas.width = window.innerWidth;
+    guiCanvas.height = window.innerHeight;
 
-    const gui = new GUI(canv);
     const geometry = new THREE.BoxGeometry( 1, 1, 1 );
-    const material = new THREE.MeshBasicMaterial( { color: 0x00ff00 } );
-    const cube = new THREE.Mesh( geometry, material );
+    const materials = [
+        new THREE.MeshBasicMaterial( { color: 0x00ff00 }),
+        new THREE.MeshBasicMaterial( { color: 0x004545 })
+    ];
+    const cube = new THREE.Mesh( geometry, materials[0] );
+    const floor = new THREE.Mesh(
+        new THREE.PlaneGeometry(5,10,32),
+        materials[1]
+    );
+    //floor.rotation.x = - (Math.PI / 2);
+    camera.position.z = 1;
+    camera.position.y = -8;
+    camera.position.x = 0;
+    camera.rotation.x = Math.PI / 2;
 
-    scene.add( cube );
+    cube.position.z = 0.5;
 
-    camera.position.z = 5;
+    const gui = new GUI(guiCanvas);
+
+    scene.add(cube);
+    scene.add(floor);
 
     let lastTime = Date.now();
 
     function animate() {
         requestAnimationFrame( animate );
-        cube.rotation.x += 0.01; cube.rotation.y += 0.01;
-        renderer.render(scene, camera);
+        cube.rotation.z += 0.01;
+
 
         { // TIME
-            const fps = 1000 / (Date.now() - lastTime);
+            const fps = Math.floor(1000 / (Date.now() - lastTime));
             gui.setFps(fps);
             lastTime = Date.now();
         }
+
+        renderer.render(scene, camera);
         gui.render();
     }
     animate();
