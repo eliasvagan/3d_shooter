@@ -24,7 +24,7 @@
 
 <script src="js/three.js"></script>
 <script src="js/elias_gui.js"></script>
-<script src="js/three.module.js" type="module"></script>
+<script src="js/keys.js"></script>
 <script>
     const canv = document.getElementById("canv");
     const guiCanvas = document.getElementById("guiCanvas");
@@ -36,39 +36,89 @@
     renderer.setSize(window.innerWidth, window.innerHeight);
     guiCanvas.width = window.innerWidth;
     guiCanvas.height = window.innerHeight;
+    const gui = new GUI(guiCanvas);
 
-    const geometry = new THREE.BoxGeometry( 1, 1, 1 );
     const materials = [
         new THREE.MeshBasicMaterial( { color: 0x00ff00 }),
         new THREE.MeshBasicMaterial( { color: 0x004545 })
     ];
-    const cube = new THREE.Mesh( geometry, materials[0] );
+
+    const cube = new THREE.Mesh(
+        new THREE.BoxGeometry( 1, 1, 1 )
+        , materials[0]
+    );
     const floor = new THREE.Mesh(
         new THREE.PlaneGeometry(5,10,32),
         materials[1]
     );
-    //floor.rotation.x = - (Math.PI / 2);
-    camera.position.z = 1;
-    camera.position.y = -8;
-    camera.position.x = 0;
-    camera.rotation.x = Math.PI / 2;
 
-    cube.position.z = 0.5;
+    function setup() {
 
-    const gui = new GUI(guiCanvas);
+        //floor.rotation.x = - (Math.PI / 2);
+        camera.position.z = 1;
+        camera.position.y = -8;
+        camera.position.x = 0;
+        camera.rotation.x = Math.PI / 2;
 
-    scene.add(cube);
-    scene.add(floor);
+        cube.position.z = 0.5;
+
+        scene.add(cube);
+        scene.add(floor);
+
+    }
 
     let lastTime = Date.now();
+    let dt = 0.0;
+
 
     function animate() {
         requestAnimationFrame( animate );
         cube.rotation.z += 0.01;
+        const speed = dt / 1000;
+
+        { // User inputs
+            camera.rotation.y += mouse.dx * 0.0001;
+            camera.rotation.x += mouse.dy * 0.0001;
+
+            for (const key of keys) {
+                let name = key[0],
+                    pressed = key[1].pressed,
+                    newPress = key[1].newPress;
+
+                if (pressed) {
+                    if (name === "ArrowUp") {
+                        camera.position.y += speed * 5 * Math.cos(camera.rotation.y);
+                        camera.position.x -= speed * 5 * Math.sin(camera.rotation.y);
+                    }
+                    if (name === "ArrowDown") {
+                        camera.position.y -= speed * 5 * Math.cos(camera.rotation.y);
+                        camera.position.x += speed * 5 * Math.sin(camera.rotation.y);
+                    }
+                    if (name === "ArrowRight") {
+                        camera.position.y += speed * 5 * Math.cos(camera.rotation.y - Math.PI / 2);
+                        camera.position.x -= speed * 5 * Math.sin(camera.rotation.y - Math.PI / 2);
+                    }
+                    if (name === "ArrowLeft") {
+                        camera.position.y += speed * 5 * Math.cos(camera.rotation.y + Math.PI / 2);
+                        camera.position.x -= speed * 5 * Math.sin(camera.rotation.y + Math.PI / 2);
+                    }
+
+                    // camera.position.x += name === "ArrowRight"  ? speed * 5 * Math.sin(camera.rotation.y) : 0;
+                    // camera.position.x -= name === "ArrowLeft"   ? speed * 5 * Math.sin(camera.rotation.y) : 0;
+
+                    camera.rotation.y += name === "KeyQ" ? speed * 5 : 0;
+                    camera.rotation.y -= name === "KeyE" ? speed * 5 : 0;
+                }
+                if (pressed && newPress) {
+
+                }
+            }
+        }
 
 
         { // TIME
-            const fps = Math.floor(1000 / (Date.now() - lastTime));
+            dt = Date.now() - lastTime;
+            const fps = Math.floor(1000 / dt);
             gui.setFps(fps);
             lastTime = Date.now();
         }
@@ -76,6 +126,7 @@
         renderer.render(scene, camera);
         gui.render();
     }
+    setup();
     animate();
 </script>
 </body>
