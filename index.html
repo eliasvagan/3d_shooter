@@ -5,25 +5,50 @@
     <title>Title</title>
     <style>
         body { margin: 0; }
-        canvas { width: 100%; height: 100% }
+        canvas {
+            /*
+            width: 100%; height: 100%;
+            */
+            background-color: dimgray}
+
     </style>
 </head>
 <body>
 
+<canvas id="canv" width="600" height="400"></canvas>
+
 <script src="js/three.js"></script>
+<script src="js/elias_gui.js"></script>
 <script>
+    const canv = document.getElementById("canv");
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera( 75, window.innerWidth/window.innerHeight, 0.1, 1000 );
-    const renderer = new THREE.WebGLRenderer();
-    renderer.setSize( window.innerWidth, window.innerHeight ); document.body.appendChild( renderer.domElement );
+    const camera = new THREE.PerspectiveCamera( 120, canv.width/canv.height, 0.1, 1000 );
+    const renderer = new THREE.WebGLRenderer(canv);
+
+    renderer.setSize( canv.width, canv.height );
+
+    const gui = new GUI(canv);
     const geometry = new THREE.BoxGeometry( 1, 1, 1 );
     const material = new THREE.MeshBasicMaterial( { color: 0x00ff00 } );
     const cube = new THREE.Mesh( geometry, material );
-    scene.add( cube ); camera.position.z = 5;
+
+    scene.add( cube );
+
+    camera.position.z = 5;
+
+    let lastTime = Date.now();
+
     function animate() {
         requestAnimationFrame( animate );
         cube.rotation.x += 0.01; cube.rotation.y += 0.01;
-        renderer.render( scene, camera );
+        renderer.render(scene, camera);
+
+        { // TIME
+            const fps = 1000 / (Date.now() - lastTime);
+            gui.setFps(fps);
+            lastTime = Date.now();
+        }
+        gui.render();
     }
     animate();
 </script>
