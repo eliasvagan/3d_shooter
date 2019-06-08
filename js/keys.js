@@ -71,12 +71,7 @@ document.addEventListener('keydown', function (evt) {
     }
 });
 
-document.addEventListener('mousemove', function(evt) {
-    mouse.dx = mouse.x - evt.clientX;
-    mouse.dy = mouse.y - evt.clientY;
-    mouse.x = evt.clientX;
-    mouse.y = evt.clientY;
-});
+
 
 document.addEventListener('keyup', function (evt) {
     let key = evt.code;

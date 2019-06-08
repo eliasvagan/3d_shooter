@@ -39,7 +39,7 @@
     const gui = new GUI(guiCanvas);
 
     const materials = [
-        new THREE.MeshBasicMaterial( { color: 0x00ff00 }),
+        new THREE.MeshBasicMaterial( { color: 0x009023 }),
         new THREE.MeshBasicMaterial( { color: 0x004545 })
     ];
 
@@ -64,12 +64,26 @@
 
         scene.add(cube);
         scene.add(floor);
+        camera.lookAt( scene.position );
 
+        camera.rotation.order = "XYZ";
+
+        guiCanvas.onclick = function() {
+            guiCanvas.requestPointerLock();
+        };
+        document.addEventListener('mousemove', updateCameraRotation);
     }
 
     let lastTime = Date.now();
     let dt = 0.0;
 
+    function updateCameraRotation(e) {
+        const sensitivity = 10;
+        camera.rotation.y -= e.movementX * sensitivity * 0.0001;
+        camera.rotation.x -= e.movementY * sensitivity * 0.0001; // * Math.cos(camera.rotation.y);
+
+        //camera.rotation.z -= e.movementY * sensitivity * 0.0001 * Math.cos(camera.rotation.y - Math.PI / 2);
+    }
 
     function animate() {
         requestAnimationFrame( animate );
@@ -77,8 +91,8 @@
         const speed = dt / 1000;
 
         { // User inputs
-            camera.rotation.y += mouse.dx * 0.0001;
-            camera.rotation.x += mouse.dy * 0.0001;
+            // camera.rotation.y += mouse.dx * 0.0001;
+            // camera.rotation.x += mouse.dy * 0.0001;
 
             for (const key of keys) {
                 let name = key[0],
