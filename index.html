@@ -26,6 +26,9 @@
 <script src="js/elias_gui.js"></script>
 <script src="js/keys.js"></script>
 <script>
+    // GLOBALS
+    const GLOBAL_SCALE = 2;
+
     const canv = document.getElementById("canv");
     const guiCanvas = document.getElementById("guiCanvas");
 
@@ -33,44 +36,104 @@
     const camera = new THREE.PerspectiveCamera( 75, window.innerWidth/window.innerHeight, 0.1, 1000 );
     const renderer = new THREE.WebGLRenderer({canvas:canv});
 
+
+    class Player extends THREE.Mesh{
+        constructor(geometry = null, material = null) {
+            if (geometry == null) geometry = new THREE.BoxGeometry(1,2,1);
+            if (material == null) material = new THREE.LineBasicMaterial( {
+                color: 0xffffff,
+                linewidth: 1,
+                linecap: 'round', //ignored by WebGLRenderer
+                linejoin:  'round' //ignored by WebGLRenderer
+            });
+            super(geometry,material);
+            this.rotation.x = 0;
+            this.rotation.y = 0;
+            this.rotation.z = 0;
+            this.camera = null;
+            this.camPosition = {
+                x: 0,
+                y: 0.7,
+                z: 0
+            };
+
+        }
+        update() {
+            if (this.camera != null) {
+                this.camera.position.x = this.camPosition.x + this.position.x;
+                this.camera.position.y = this.camPosition.y + this.position.y;
+                this.camera.position.z = this.camPosition.z + this.position.z;
+                this.camera.rotation.y = this.rotation.y;
+
+            }
+        }
+    }
+
+    renderer.setPixelRatio( 1 / GLOBAL_SCALE );
     renderer.setSize(window.innerWidth, window.innerHeight);
     guiCanvas.width = window.innerWidth;
     guiCanvas.height = window.innerHeight;
     const gui = new GUI(guiCanvas);
 
+
     const materials = [
         new THREE.MeshBasicMaterial( { color: 0x009023 }),
-        new THREE.MeshBasicMaterial( { color: 0x004545 })
+        new THREE.MeshBasicMaterial( { color: 0x004545 }),
+
+        new THREE.MeshToonMaterial( {color: 0x001010}),
     ];
+    const player = new Player();
 
     const cube = new THREE.Mesh(
         new THREE.BoxGeometry( 1, 1, 1 )
-        , materials[0]
+        , materials[1]
+    );
+    const cube2 = new THREE.Mesh(
+        new THREE.BoxGeometry( 1, 1, 1 )
+        , materials[2]
     );
     const floor = new THREE.Mesh(
         new THREE.PlaneGeometry(5,10,32),
-        materials[1]
+        materials[2]
     );
+    floor.receiveShadow = true;
+    const sun = new THREE.DirectionalLight(0xffffff, 10);
 
     function setup() {
 
-        //floor.rotation.x = - (Math.PI / 2);
-        camera.position.z = 1;
-        camera.position.y = -8;
-        camera.position.x = 0;
-        camera.rotation.x = Math.PI / 2;
+        player.camera = camera;
 
-        cube.position.z = 0.5;
+        //floor.rotation.x = - (Math.PI / 2);
+        camera.position.z = 4;
+        camera.position.y = 0.5;
+        camera.position.x = 0;
+        camera.rotation.x = 0;
+
+        sun.position.y = 10;
+
+        floor.rotation.x = -Math.PI / 2;
+
+        cube.position.y = 0.5;
+        cube.position.z = cube2.position.z = -4;
+        cube2.position.y = 1.5;
+
+        player.position.x = 2;
+        player.position.y = 1;
+        player.position.z = -4;
+
 
         scene.add(cube);
+        scene.add(cube2);
         scene.add(floor);
-        camera.lookAt( scene.position );
+        scene.add(sun);
+        scene.add(player);
 
-        camera.rotation.order = "XYZ";
 
         guiCanvas.onclick = function() {
             guiCanvas.requestPointerLock();
         };
+
+        camera.rotation.order = "YXZ";
         document.addEventListener('mousemove', updateCameraRotation);
     }
 
@@ -78,22 +141,25 @@
     let dt = 0.0;
 
     function updateCameraRotation(e) {
-        const sensitivity = 10;
-        camera.rotation.y -= e.movementX * sensitivity * 0.0001;
-        camera.rotation.x -= e.movementY * sensitivity * 0.0001; // * Math.cos(camera.rotation.y);
+        const euler = new THREE.Euler( 0, 0, 0, 'YXZ' );
+        const movementX = e.movementX || e.mozMovementX || e.webkitMovementX || 0;
+        const movementY = e.movementY || e.mozMovementY || e.webkitMovementY || 0;
 
-        //camera.rotation.z -= e.movementY * sensitivity * 0.0001 * Math.cos(camera.rotation.y - Math.PI / 2);
+        euler.setFromQuaternion( camera.quaternion );
+
+        euler.y -= movementX * 0.002;
+        euler.x -= movementY * 0.002;
+
+        euler.x = Math.max( - Math.PI/2, Math.min( Math.PI/2, euler.x ) );
+        camera.quaternion.setFromEuler( euler );
+        player.rotation.y = euler.y;
     }
 
     function animate() {
         requestAnimationFrame( animate );
-        cube.rotation.z += 0.01;
         const speed = dt / 1000;
 
         { // User inputs
-            // camera.rotation.y += mouse.dx * 0.0001;
-            // camera.rotation.x += mouse.dy * 0.0001;
-
             for (const key of keys) {
                 let name = key[0],
                     pressed = key[1].pressed,
@@ -101,27 +167,25 @@
 
                 if (pressed) {
                     if (name === "ArrowUp") {
-                        camera.position.y += speed * 5 * Math.cos(camera.rotation.y);
-                        camera.position.x -= speed * 5 * Math.sin(camera.rotation.y);
+                        player.position.z -= speed * 5 * Math.cos(player.rotation.y);
+                        player.position.x -= speed * 5 * Math.sin(player.rotation.y);
                     }
                     if (name === "ArrowDown") {
-                        camera.position.y -= speed * 5 * Math.cos(camera.rotation.y);
-                        camera.position.x += speed * 5 * Math.sin(camera.rotation.y);
+                        player.position.z += speed * 5 * Math.cos(player.rotation.y);
+                        player.position.x += speed * 5 * Math.sin(player.rotation.y);
                     }
                     if (name === "ArrowRight") {
-                        camera.position.y += speed * 5 * Math.cos(camera.rotation.y - Math.PI / 2);
-                        camera.position.x -= speed * 5 * Math.sin(camera.rotation.y - Math.PI / 2);
+                        player.position.z -= speed * 5 * Math.cos(player.rotation.y - Math.PI / 2);
+                        player.position.x -= speed * 5 * Math.sin(player.rotation.y - Math.PI / 2);
                     }
                     if (name === "ArrowLeft") {
-                        camera.position.y += speed * 5 * Math.cos(camera.rotation.y + Math.PI / 2);
-                        camera.position.x -= speed * 5 * Math.sin(camera.rotation.y + Math.PI / 2);
+                        player.position.z -= speed * 5 * Math.cos(player.rotation.y + Math.PI / 2);
+                        player.position.x -= speed * 5 * Math.sin(player.rotation.y + Math.PI / 2);
                     }
 
-                    // camera.position.x += name === "ArrowRight"  ? speed * 5 * Math.sin(camera.rotation.y) : 0;
-                    // camera.position.x -= name === "ArrowLeft"   ? speed * 5 * Math.sin(camera.rotation.y) : 0;
-
-                    camera.rotation.y += name === "KeyQ" ? speed * 5 : 0;
-                    camera.rotation.y -= name === "KeyE" ? speed * 5 : 0;
+                    //TODO: Fjern dette
+                    player.rotation.y += name === "KeyQ" ? speed * 5 : 0;
+                    player.rotation.y += name === "KeyE" ? -speed * 5 : 0;
                 }
                 if (pressed && newPress) {
 
@@ -129,13 +193,14 @@
             }
         }
 
-
         { // TIME
             dt = Date.now() - lastTime;
             const fps = Math.floor(1000 / dt);
             gui.setFps(fps);
             lastTime = Date.now();
         }
+
+        player.update();
 
         renderer.render(scene, camera);
         gui.render();
