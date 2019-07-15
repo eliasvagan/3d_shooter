@@ -24,7 +24,7 @@ class GUI {
             ammo2Rem: 0
         };
         this.globalSettings = {
-            displayGUI: true
+            displayGUI: false
         }
     }
 

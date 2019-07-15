@@ -67,6 +67,7 @@ document.addEventListener('keydown', function (evt) {
         if(key === keyname){
             keydata.pressed = true;
             keydata.newPress = false;
+            //console.log(key, 'pressed')
         }
     }
 });

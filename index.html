@@ -14,199 +14,38 @@
             left:0;
 
         }
+        p#debug {
+            position: fixed;
+            top: 5px;
+            right: 5px;
+            width: 400px;
+            min-height: 3em;
+            display: block;
+            background-color: rgba(0,0,0,0.4);
+            color: white;
+            font-family: monospace;
+        }
 
     </style>
+    <script src="js/modules/three.js" ></script>
+    <script src="js/modules/OBJLoader.js" ></script>
+    <script src="js/modules/MTLLoader.js" ></script>
+    <!-- script src="js/modules/threex.collider.js"></script>
+    <script src="js/modules/threex.colliderhelper.js"></script>
+    <script src="js/modules/threex.collidersystem.js"></script -->
+
 </head>
 <body>
 
 <canvas id="canv"></canvas>
 <canvas id="guiCanvas"></canvas>
-
-<script src="js/three.js"></script>
-<script src="js/elias_gui.js"></script>
-<script src="js/keys.js"></script>
-<script>
-    // GLOBALS
-    const GLOBAL_SCALE = 2;
-
-    const canv = document.getElementById("canv");
-    const guiCanvas = document.getElementById("guiCanvas");
-
-    const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera( 75, window.innerWidth/window.innerHeight, 0.1, 1000 );
-    const renderer = new THREE.WebGLRenderer({canvas:canv});
+<p id="debug"></p>
 
 
-    class Player extends THREE.Mesh{
-        constructor(geometry = null, material = null) {
-            if (geometry == null) geometry = new THREE.BoxGeometry(1,2,1);
-            if (material == null) material = new THREE.LineBasicMaterial( {
-                color: 0xffffff,
-                linewidth: 1,
-                linecap: 'round', //ignored by WebGLRenderer
-                linejoin:  'round' //ignored by WebGLRenderer
-            });
-            super(geometry,material);
-            this.rotation.x = 0;
-            this.rotation.y = 0;
-            this.rotation.z = 0;
-            this.camera = null;
-            this.camPosition = {
-                x: 0,
-                y: 0.7,
-                z: 0
-            };
 
-        }
-        update() {
-            if (this.camera != null) {
-                this.camera.position.x = this.camPosition.x + this.position.x;
-                this.camera.position.y = this.camPosition.y + this.position.y;
-                this.camera.position.z = this.camPosition.z + this.position.z;
-                this.camera.rotation.y = this.rotation.y;
-
-            }
-        }
-    }
-
-    renderer.setPixelRatio( 1 / GLOBAL_SCALE );
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    guiCanvas.width = window.innerWidth;
-    guiCanvas.height = window.innerHeight;
-    const gui = new GUI(guiCanvas);
-
-
-    const materials = [
-        new THREE.MeshBasicMaterial( { color: 0x009023 }),
-        new THREE.MeshBasicMaterial( { color: 0x004545 }),
-
-        new THREE.MeshToonMaterial( {color: 0x001010}),
-    ];
-    const player = new Player();
-
-    const cube = new THREE.Mesh(
-        new THREE.BoxGeometry( 1, 1, 1 )
-        , materials[1]
-    );
-    const cube2 = new THREE.Mesh(
-        new THREE.BoxGeometry( 1, 1, 1 )
-        , materials[2]
-    );
-    const floor = new THREE.Mesh(
-        new THREE.PlaneGeometry(5,10,32),
-        materials[2]
-    );
-    floor.receiveShadow = true;
-    const sun = new THREE.DirectionalLight(0xffffff, 10);
-
-    function setup() {
-
-        player.camera = camera;
-
-        //floor.rotation.x = - (Math.PI / 2);
-        camera.position.z = 4;
-        camera.position.y = 0.5;
-        camera.position.x = 0;
-        camera.rotation.x = 0;
-
-        sun.position.y = 10;
-
-        floor.rotation.x = -Math.PI / 2;
-
-        cube.position.y = 0.5;
-        cube.position.z = cube2.position.z = -4;
-        cube2.position.y = 1.5;
-
-        player.position.x = 2;
-        player.position.y = 1;
-        player.position.z = -4;
-
-
-        scene.add(cube);
-        scene.add(cube2);
-        scene.add(floor);
-        scene.add(sun);
-        scene.add(player);
-
-
-        guiCanvas.onclick = function() {
-            guiCanvas.requestPointerLock();
-        };
-
-        camera.rotation.order = "YXZ";
-        document.addEventListener('mousemove', updateCameraRotation);
-    }
-
-    let lastTime = Date.now();
-    let dt = 0.0;
-
-    function updateCameraRotation(e) {
-        const euler = new THREE.Euler( 0, 0, 0, 'YXZ' );
-        const movementX = e.movementX || e.mozMovementX || e.webkitMovementX || 0;
-        const movementY = e.movementY || e.mozMovementY || e.webkitMovementY || 0;
-
-        euler.setFromQuaternion( camera.quaternion );
-
-        euler.y -= movementX * 0.002;
-        euler.x -= movementY * 0.002;
-
-        euler.x = Math.max( - Math.PI/2, Math.min( Math.PI/2, euler.x ) );
-        camera.quaternion.setFromEuler( euler );
-        player.rotation.y = euler.y;
-    }
-
-    function animate() {
-        requestAnimationFrame( animate );
-        const speed = dt / 1000;
-
-        { // User inputs
-            for (const key of keys) {
-                let name = key[0],
-                    pressed = key[1].pressed,
-                    newPress = key[1].newPress;
-
-                if (pressed) {
-                    if (name === "ArrowUp") {
-                        player.position.z -= speed * 5 * Math.cos(player.rotation.y);
-                        player.position.x -= speed * 5 * Math.sin(player.rotation.y);
-                    }
-                    if (name === "ArrowDown") {
-                        player.position.z += speed * 5 * Math.cos(player.rotation.y);
-                        player.position.x += speed * 5 * Math.sin(player.rotation.y);
-                    }
-                    if (name === "ArrowRight") {
-                        player.position.z -= speed * 5 * Math.cos(player.rotation.y - Math.PI / 2);
-                        player.position.x -= speed * 5 * Math.sin(player.rotation.y - Math.PI / 2);
-                    }
-                    if (name === "ArrowLeft") {
-                        player.position.z -= speed * 5 * Math.cos(player.rotation.y + Math.PI / 2);
-                        player.position.x -= speed * 5 * Math.sin(player.rotation.y + Math.PI / 2);
-                    }
-
-                    //TODO: Fjern dette
-                    player.rotation.y += name === "KeyQ" ? speed * 5 : 0;
-                    player.rotation.y += name === "KeyE" ? -speed * 5 : 0;
-                }
-                if (pressed && newPress) {
-
-                }
-            }
-        }
-
-        { // TIME
-            dt = Date.now() - lastTime;
-            const fps = Math.floor(1000 / dt);
-            gui.setFps(fps);
-            lastTime = Date.now();
-        }
-
-        player.update();
-
-        renderer.render(scene, camera);
-        gui.render();
-    }
-    setup();
-    animate();
-</script>
+<script src="js/game/elias_gui.js"></script>
+<script src="js/game/objects_data.js"></script>
+<script src="js/game/keys.js"></script>
+<script src="js/game/core.js"></script>
 </body>
 </html>

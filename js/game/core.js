@@ -1,8 +1,9 @@
 const SETTINGS =  {
     renderScale: 1,
-    fov: 80
+    fov: 80,
+    debug: true
 };
-const WEAPONS_DIR = "res/guns/";
+const WEAPONS_DIR = "assets/guns/";
 
 const canv = document.getElementById("canv");
 const guiCanvas = document.getElementById("guiCanvas");
@@ -10,27 +11,22 @@ const guiCanvas = document.getElementById("guiCanvas");
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera( SETTINGS.fov, window.innerWidth/window.innerHeight, 0.1, 1000 );
 const renderer = new THREE.WebGLRenderer({canvas:canv});
+//const colliderSystem  = new THREEx.ColliderSystem();
 
-//TODO: FIX LoadObjects
 async function loadAssets() {
 
-    const paths = [
-        "res/guns/gun1",
-        "res/guns/gun2",
-    ];
+    const loadedObjects = [];
 
-    async function loadPaths(){
-        let loadedObjects = [];
-        return await paths.forEach(async (path) => {
-            await loadObject(path).then(function (object) {
-                loadedObjects.push(object);
-                console.log("added ", object);
-            });
-        }).then(function () {
-            return(loadedObjects);
+    for (const weapon of weapons) {
+        await loadObject(weapon.name).then(function (result) {
+            const weaponObject = new Weapon(result);
+            result.scale.set(weapon.scale, weapon.scale, weapon.scale);
+            weaponObject.offset = weapon.offset;
+            loadedObjects.push(weaponObject);
         });
     }
-    return await loadPaths;
+
+    return Promise.all(loadedObjects);
 }
 
 
@@ -44,7 +40,7 @@ async function loadObject(path) {
             let loadOBJPromise = new Promise(function (resolve, reject) {
                 function loadOBJDone(object) {
                     console.log('Successfully loaded from ', path);
-
+                    //object.children[0].material.side = 2;
                     resolve(object);
                 }
 
@@ -57,7 +53,7 @@ async function loadObject(path) {
                 }
 
                 const objLoader = new THREE.OBJLoader();
-                objLoader.setPath("res/guns/");
+                objLoader.setPath("/3d_shooter/assets/models/");
                 objLoader.setMaterials(materials);
                 return objLoader.load(path + ".obj", loadOBJDone, loadOBJProgress, loadOBJFailed);
             });
@@ -68,15 +64,82 @@ async function loadObject(path) {
             //console.log((xhr.loaded / xhr.total * 100) + '% loaded .mtl');
         }
         function loadMTLFailed(error) {
-            reject('Failed to load from ' + path);
+            console.log(error);
+            reject('Failed to load from ' + error.target.responseURL);
         }
         const mtlLoader = new THREE.MTLLoader();
-        mtlLoader.setTexturePath("res/guns/");
-        mtlLoader.setPath("res/guns/");
+        //mtlLoader.setTexturePath("/3d_shooter/assets/textures/"); //TODO: Finn ut om denne er nødvendig
+        mtlLoader.setPath("/3d_shooter/assets/models/");
         return mtlLoader.load(path + ".mtl", loadMTLDone, loadMTLProgress, loadMTLFailed);
     });
 
     return await loadMTLPromise;
+
+}
+
+class Gameobject {
+    constructor(model) {
+        this.model = model;
+        this.velocity = {
+            x: 0,
+            y: 0,
+            z: 0,
+        };
+    }
+    addToScene(specifiedScene = scene) {
+        specifiedScene.add(this.model);
+    }
+    removeFromScene() {
+        scene.remove(this.model);
+    }
+    update(dt) {
+        // Careful with this one
+    }
+}
+
+class Weapon extends Gameobject {
+    constructor(model) {
+        super(model);
+        this.model.layers.set(1);
+        this.matrixAutoUpdate = true;
+        this.offset = {
+            x: 0,
+            y: 0,
+            z: 0
+        };
+        this.swayPos = {
+            x: 0,
+            y: 0,
+            z: 0
+        };
+    }
+    sway(vx, vy, vz) {
+        const swayConstant = 0.01;
+        this.velocity.x += -vx * swayConstant;
+        this.velocity.y += -vy * swayConstant * 2;
+        this.velocity.z += -vz * swayConstant;
+    }
+    update(dt) {
+        super.update(dt);
+        let rs = dt * 10;
+        rs = Math.min(rs, 0.8);
+
+        this.velocity.x *= (1 - rs);
+        this.velocity.y *= (1 - rs);
+        this.velocity.z *= (1 - rs);
+
+        const fixSpeed = 9;
+
+        this.swayPos.x += (this.velocity.x - this.swayPos.x) * dt * fixSpeed;
+        this.swayPos.y += (this.velocity.y - this.swayPos.y) * dt * fixSpeed;
+        this.swayPos.z += (this.velocity.z - this.swayPos.z) * dt * fixSpeed;
+
+        this.model.position.set(
+            this.offset.x + this.swayPos.x,
+            this.offset.y + this.swayPos.y,
+            this.offset.z + this.swayPos.z
+        );
+    }
 
 }
 
@@ -91,9 +154,16 @@ class Player extends THREE.LineSegments{
         });
         super(geometry,material);
 
-        this.velocityX = 0;
-        this.velocityY = 0;
-        this.velocityZ = 0;
+        //this.collider = THREEx.Collider.createFromObject3d(this);
+
+        this.velocity = {
+            x: 0,
+            y: 0,
+            z: 0,
+            x0: 0,
+            y0: 0,
+            z0: 0,
+        };
 
         // Values between 0 and 10:
         this.moveSpeed = 5;
@@ -101,13 +171,10 @@ class Player extends THREE.LineSegments{
         this.accelleration = 1; //TODO: Fiks accelleration
         this.deaccelleration = 0.18;
         this.maxSpeed = 10;
+        this.jumpSpeed = 4;
+        this.isOnGround = false;
 
         this.weapon = null;
-        this.weaponOffset = {
-            x: 0.3,
-            y: -0.4 + 1,
-            z: -0.2
-        };
 
         this.camera = null;
         this.camOffset = {
@@ -117,10 +184,10 @@ class Player extends THREE.LineSegments{
         };
 
     }
-    setWeapon(object) {
-       this.weapon = object;
-       this.camera.add(object);
-       this.weapon.position.set(this.weaponOffset.x, this.weaponOffset.y, this.weaponOffset.z);
+    setWeapon(weapon) {
+       this.weapon = weapon;
+        console.log("Set weapon to", weapon);
+       this.camera.add(weapon.model);
     }
     setCamera(object) {
         this.camera = object;
@@ -128,16 +195,14 @@ class Player extends THREE.LineSegments{
         this.camera.position.set(this.camOffset.x, this.camOffset.y, this.camOffset.z);
     }
     update(dt) {
-        //if (this.camera != null) {
-        //    this.camera.position.x = this.camPosition.x + this.position.x;
-        //    this.camera.position.y = this.camPosition.y + this.position.y;
-        //    this.camera.position.z = this.camPosition.z + this.position.z;
-        //    this.camera.rotation.y = this.rotation.y;
-        //}
         { // User inputs
             let sumx = 0.00,
                 sumz = 0.00,
                 sumy = 0.00;
+
+            this.velocity.x0 = this.velocity.x;
+            this.velocity.y0 = this.velocity.y;
+            this.velocity.z0 = this.velocity.z;
 
             for (const key of keys) {
                 let name = key[0],
@@ -158,33 +223,72 @@ class Player extends THREE.LineSegments{
                     }
                 }
                 if (pressed && newPress) {
-
+                    if (name === 'Space' && this.isOnGround) {
+                        this.velocity.y += this.jumpSpeed;
+                        console.log('Jump');
+                    }
 
                 }
             }
 
-            this.velocityX = this.velocityX * (1 - this.deaccelleration) + (sumx * this.moveSpeed * this.accelleration);
-            this.velocityZ = this.velocityZ * (1 - this.deaccelleration) + (sumz * this.moveSpeed * this.accelleration);
+            this.velocity.x = this.velocity.x * (1 - this.deaccelleration) + (sumx * this.moveSpeed * this.accelleration);
+            this.velocity.z = this.velocity.z * (1 - this.deaccelleration) + (sumz * this.moveSpeed * this.accelleration);
 
             //Speed cap
-            this.velocityX = Math.max(Math.min(this.velocityX, this.maxSpeed), -this.maxSpeed);
-            this.velocityZ = Math.max(Math.min(this.velocityZ, this.maxSpeed), -this.maxSpeed);
+            this.velocity.x = Math.max(Math.min(this.velocity.x, this.maxSpeed), -this.maxSpeed);
+            this.velocity.z = Math.max(Math.min(this.velocity.z, this.maxSpeed), -this.maxSpeed);
+        }
+
+        // TODO: Gravity
+        {
+            this.isOnGround = this.position.y -1 < 0; // Predicate for not falling
+
+            if (this.isOnGround) {
+                this.velocity.y = Math.max(this.velocity.y, 0);
+            } else {
+                this.velocity.y -= dt * 20;
+            }
         }
 
 
         //Update position
         {
-            debug.addText("Player rotation X: " + this.rotation.x);
-            debug.addText("Player rotation Y: " + this.rotation.y);
-            debug.addText("Player rotation Z: " + this.rotation.z);
+            this.translateZ(this.velocity.z * dt);
+            this.translateX(this.velocity.x * dt);
+            this.translateY(this.velocity.y * dt);
+        }
+
+        //Update weapon
+        if (this.weapon != null) {
+            this.weapon.sway(
+                this.velocity.x - this.velocity.x0,
+                this.velocity.y - this.velocity.y0,
+                this.velocity.z - this.velocity.z0,
+            );
+            this.weapon.update(dt);
+        }
+
+        // DEBUG
+        {
+            debug.addText("Player speed X: " + this.velocity.x);
+            debug.addText("Player speed Y: " + this.velocity.y);
+            debug.addText("Player speed Z: " + this.velocity.z);
             debug.addText("Camera rotation X: " + camera.rotation.x);
             debug.addText("Camera rotation Y: " + camera.rotation.y);
             debug.addText("Camera rotation Z: " + camera.rotation.z);
-
-            this.translateZ(this.velocityZ * dt);
-            this.translateX(this.velocityX * dt);
-
         }
+    }
+}
+
+class Floor extends Gameobject {
+    constructor(model) {
+        super(model);
+    }
+    update(dt) {
+        super.update(dt);
+    }
+    isColliding(object) {
+        // TODO: Return if colliding.
     }
 }
 
@@ -224,7 +328,7 @@ const cube = new THREE.Mesh(
     , materials[1]
 );
 const cube2 = new THREE.Mesh(
-    new THREE.BoxGeometry( 1, 1, 1 )
+    new THREE.BoxGeometry( 1, 2, 1 )
     , materials[2]
 );
 const floor = new THREE.Mesh(
@@ -235,39 +339,51 @@ const debug = new Debugger(document.getElementById('debug'));
 
 floor.receiveShadow = true;
 floor.castShadow = true;
-const sun = new THREE.DirectionalLight(0xffffff, 10);
 
 async function setup() {
-    loadObject('gun2').then(function (result) {
-        const weapon = result;
+    loadAssets().then(function (result) {
+        const weapon = result[2];
+
+        camera.layers.enable(1);
 
         scene.add(player);
         player.position.set(0,1,0);
         player.setCamera(camera);
         player.setWeapon(weapon);
 
-        scene.add(result);
-
-        sun.position.y = 30;
-
         floor.rotation.x = -Math.PI / 2;
+        cube2.position.y = 0.5;
+
+        var keyLight = new THREE.DirectionalLight(new THREE.Color('hsl(30, 100%, 75%)'), 1.0);
+        keyLight.position.set(-100, 0, 100);
+
+        var fillLight = new THREE.DirectionalLight(new THREE.Color('hsl(240, 100%, 75%)'), 0.75);
+        fillLight.position.set(100, 0, 100);
+
+        var backLight = new THREE.DirectionalLight(0xffffff, 1.0);
+        backLight.position.set(100, 0, -100).normalize();
+
+        scene.add(keyLight);
+        scene.add(fillLight);
+        scene.add(backLight);
 
         scene.add(cube2);
-        camera.add(cube);
         scene.add(floor);
-        scene.add(sun);
-
-        cube.position.set(0,0,-10);
 
         guiCanvas.onclick = function() {
             guiCanvas.requestPointerLock();
         };
 
+        // collider2 = new THREEx.Collider.createFromObject3d(cube);
+        // onCollideEnter = player.collider.addEventListener('contactEnter', function (otherCollider) {
+        //     console.log(otherCollider);
+        // });
+
         camera.rotation.order = "YXZ";
         document.addEventListener('mousemove', updateCameraRotation);
+
+        animate();
     });
-
-
 }
 
 let lastTime = Date.now();
@@ -308,10 +424,11 @@ function animate() {
     lastTime = Date.now();
 
     player.update(dt / 1000);
+    //colliderSystem.computeAndNotify([player.collider, collider2]);
 
     renderer.render(scene, camera);
     gui.render();
 
     debug.update();
 }
-setup().then(animate);
+setup();
