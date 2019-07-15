@@ -50,7 +50,7 @@ class GUI {
                 color2 = "rgba(255,255,255,0.3)",
                 color3 = "#FF2",
                 color4 = "rgba(255,185,66,0.29)",
-                scale = 1;
+                scale = 1 / SETTINGS.renderScale;
 
             this.context.beginPath();
             this.context.fillStyle = color2;
