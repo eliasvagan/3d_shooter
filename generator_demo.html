@@ -27,8 +27,6 @@
     const btnRefresh = document.getElementById("btnRefresh");
     const btnRefreshFromSeed = document.getElementById("btnRefreshFromSeed");
     const inpSeed = document.getElementById("inpSeed");
-    
-
 
     function generateSeed() {
         const length = 100;
@@ -39,13 +37,21 @@
         return str;
     }
 
+    const defaultSettings = {
+        size: 200,
+        paths: null,
+    };
 
-
-    function generateDungeon(seed, volaticity = 0) {
+    function generateDungeon(seed, settings = defaultSettings) {
         let tiles = [
             {x: 0, y: 0, z: 0}
         ];
-        const size = 200;
+
+        let dungeon = {
+            entrance: tiles[0],
+            ending: tiles[tiles.length - 1],
+            floor: tiles
+        };
 
         let seedIndex1 = 0;
         let seedIndex2 = 1;
@@ -59,56 +65,70 @@
             return (seed[seedIndex1] + seed[seedIndex2]) / 100;
         }
 
-        const xBias = 0.2 + (0.25 - rn() / 2);  // -1 <= bias >= 1
-        const yBias = 0;
 
-        for (let i = 1; i < size; i++) {
 
-            const num = rn();
+        function addPaths(numberOfPaths) {
+            for (let n = 0; n < numberOfPaths; n++) {
 
-            seedIndex1 = seed.length - 1 <= seedIndex1 ? 0 : seedIndex1 + 1;
-            seedIndex2 = seed.length - 2 <= seedIndex2 ? 0 : seedIndex2 + 2;
+                const xBias = 0.2 + (0.25 - rn() / 2);  // -1 <= bias >= 1
+                const yBias = 0.2 + (0.25 - rn() / 2);
+                let num = rn();
 
-            let nx = px;
-            let ny = py;
+                if (n > 0) {
+                    const ps = Math.floor(num * tiles.length);
+                    px = tiles[ps].x;
+                    py = tiles[ps].y;
+                }
 
-            if (num < 0.5) {
-                nx = px + (num < 0.25 + xBias / 4 ? 1 : -1);
-            } else {
-                ny = py + (num < 0.75 - yBias / 4 ? 1 : -1);
-            }
+                for (let i = 1; i < settings.size; i++) {
 
-            // const nx = px + (rn <  (0.5 + xBias/2) ? (rn < 0.25 ? 1 : -1): 0);
-            // const ny = py + (rn >= (0.5 + xBias/2) ? (rn < 0.75 ? 1 : -1): 0);
+                    num = rn();
 
-            tiles.push({
-                x: nx,
-                y: ny,
-                z: 0
-            });
+                    seedIndex1 = seed.length - 1 <= seedIndex1 ? 0 : seedIndex1 + 1;
+                    seedIndex2 = seed.length - 2 <= seedIndex2 ? 0 : seedIndex2 + 2;
 
-            px = nx;
-            py = ny;
-        }
+                    let nx = px;
+                    let ny = py;
 
-        for (let i = 0; i < tiles.length - 1; i+=2) {
-            const thisTile = tiles[i];
-            for (let j = 1; j < tiles.length; j+=2) {
-                const thatTile = tiles[j];
-                if (thisTile.x === thatTile.x && thisTile.y === thatTile.y) {
-                    tiles.splice(i, 1);
-                    console.log(i, j);
+                    if (num < 0.5) {
+                        nx = px + (num < 0.25 + xBias / 4 ? 1 : -1);
+                    } else {
+                        ny = py + (num < 0.75 - yBias / 4 ? 1 : -1);
+                    }
+
+                    tiles.push({
+                        x: nx,
+                        y: ny,
+                        z: 0
+                    });
+
+                    px = nx;
+                    py = ny;
                 }
             }
+
+            //Cleanup
+            for (let i = 0; i < tiles.length; i+=1) {
+                const thisTile = tiles[i];
+                for (let j = 0; j < tiles.length; j+=1) {
+                    const thatTile = tiles[j];
+                    if (thisTile.x === thatTile.x && thisTile.y === thatTile.y && thisTile !== thatTile) {
+                        tiles.splice(j, 1);
+                    }
+                }
+            }
+            dungeon.ending = tiles[tiles.length - 1];
         }
-        console.log(tiles);
-        return {
-            entrance: tiles[0],
-            ending: tiles[tiles.length - 1],
-            floor: tiles
-        };
+
+        //Generation
+        if (settings.paths == null) {
+            addPaths(Math.floor(rn() * 17) + 1);
+        } else {
+            addPaths(settings.paths);
+        }
 
 
+        return dungeon;
     }
     function refresh() {
         let seed = generateSeed();
@@ -119,7 +139,7 @@
         ctx.clearRect(0,0,1000,1000);
         const cx = 300;
         const cy = 500;
-        const ts = 9;
+        const ts = 4;
         ctx.fillStyle = "gray";
         for (let tile of dungeon.floor) {
             ctx.fillRect(
