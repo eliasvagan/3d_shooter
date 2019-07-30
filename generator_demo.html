@@ -8,6 +8,7 @@
             border: solid lightgray 1px;
         }
     </style>
+    <script src="js/game/generation.js"></script>
 </head>
 <body>
 
@@ -28,108 +29,7 @@
     const btnRefreshFromSeed = document.getElementById("btnRefreshFromSeed");
     const inpSeed = document.getElementById("inpSeed");
 
-    function generateSeed() {
-        const length = 100;
-        let str = "";
-        for (let i = 0; i < length; i++) {
-            str += "0123456789".charAt(Math.floor(Math.random() * 10));
-        }
-        return str;
-    }
 
-    const defaultSettings = {
-        size: 200,
-        paths: null,
-    };
-
-    function generateDungeon(seed, settings = defaultSettings) {
-        let tiles = [
-            {x: 0, y: 0, z: 0}
-        ];
-
-        let dungeon = {
-            entrance: tiles[0],
-            ending: tiles[tiles.length - 1],
-            floor: tiles
-        };
-
-        let seedIndex1 = 0;
-        let seedIndex2 = 1;
-
-        let px = tiles[0].x;
-        let py = tiles[0].y;
-
-        function rn() {
-            seedIndex1 = seed.length - 1 <= seedIndex1 ? 0 : seedIndex1 + 1;
-            seedIndex2 = seed.length - 7 <= seedIndex2 ? 1 : seedIndex2 + 2;
-            return (seed[seedIndex1] + seed[seedIndex2]) / 100;
-        }
-
-
-
-        function addPaths(numberOfPaths) {
-            for (let n = 0; n < numberOfPaths; n++) {
-
-                const xBias = 0.2 + (0.25 - rn() / 2);  // -1 <= bias >= 1
-                const yBias = 0.2 + (0.25 - rn() / 2);
-                let num = rn();
-
-                if (n > 0) {
-                    const ps = Math.floor(num * tiles.length);
-                    px = tiles[ps].x;
-                    py = tiles[ps].y;
-                }
-
-                for (let i = 1; i < settings.size; i++) {
-
-                    num = rn();
-
-                    seedIndex1 = seed.length - 1 <= seedIndex1 ? 0 : seedIndex1 + 1;
-                    seedIndex2 = seed.length - 2 <= seedIndex2 ? 0 : seedIndex2 + 2;
-
-                    let nx = px;
-                    let ny = py;
-
-                    if (num < 0.5) {
-                        nx = px + (num < 0.25 + xBias / 4 ? 1 : -1);
-                    } else {
-                        ny = py + (num < 0.75 - yBias / 4 ? 1 : -1);
-                    }
-
-                    tiles.push({
-                        x: nx,
-                        y: ny,
-                        z: 0
-                    });
-
-                    px = nx;
-                    py = ny;
-                }
-            }
-
-            //Cleanup
-            for (let i = 0; i < tiles.length; i+=1) {
-                const thisTile = tiles[i];
-                for (let j = 0; j < tiles.length; j+=1) {
-                    const thatTile = tiles[j];
-                    if (thisTile.x === thatTile.x && thisTile.y === thatTile.y && thisTile !== thatTile) {
-                        tiles.splice(j, 1);
-                    }
-                }
-            }
-            dungeon.ending = tiles[tiles.length - 1];
-        }
-
-        //Generation
-        if (settings.paths == null) {
-            addPaths(Math.floor(rn() * 17) + 1);
-        } else {
-            addPaths(settings.paths);
-        }
-
-
-        return dungeon;
-    }
     function refresh() {
         let seed = generateSeed();
         info.innerText = "Seed: " + seed;
@@ -140,30 +40,30 @@
         const cx = 300;
         const cy = 500;
         const ts = 4;
-        ctx.fillStyle = "gray";
-        for (let tile of dungeon.floor) {
+        function drawSquare(x, y, color) {
+            ctx.fillStyle = color;
             ctx.fillRect(
-                tile.x * ts + cx,
-                tile.y * ts + cy,
+                x * ts + cx,
+                y * ts + cy,
                 ts,
                 ts
             );
         }
+        for (let tile of dungeon.floor) {
+            drawSquare(tile.x, tile.y, 'lightgray');
+        }
 
-        ctx.fillStyle = "limegreen";
-        ctx.fillRect(
-            dungeon.entrance.x * ts + cx,
-            dungeon.entrance.y * ts + cy,
-            ts,
-            ts
-        );
-        ctx.fillStyle = "red";
-        ctx.fillRect(
-            dungeon.ending.x * ts + cx,
-            dungeon.ending.y * ts + cy,
-            ts,
-            ts
-        );
+        for (let tile of dungeon.walls) {
+            drawSquare(tile.x, tile.y, 'gray');
+        }
+
+        for (let tile of dungeon.loot) {
+            drawSquare(tile.x, tile.y, 'orange');
+        }
+
+        drawSquare(dungeon.entrance.x, dungeon.entrance.y, 'limegreen');
+        drawSquare(dungeon.ending.x, dungeon.ending.y, 'red');
+
     }
     
     btnRefresh.addEventListener('click', refresh);
