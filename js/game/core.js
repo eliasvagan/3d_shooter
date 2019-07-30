@@ -4,9 +4,16 @@ const SETTINGS =  {
     debug: true
 };
 const WEAPONS_DIR = "assets/guns/";
+const KEY_LISTENERS = [
+    
+];
 
 const canv = document.getElementById("canv");
 const guiCanvas = document.getElementById("guiCanvas");
+const loadingScreen = document.getElementById("loadingScreen");
+const loadingBar = document.getElementById("loadingBar");
+
+
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera( SETTINGS.fov, window.innerWidth/window.innerHeight, 0.1, 1000 );
@@ -16,15 +23,21 @@ const renderer = new THREE.WebGLRenderer({canvas:canv});
 async function loadAssets() {
 
     const loadedObjects = [];
+    let loadedIndex = 0;
+    let loadedLength = weapons.length; //TODO: Expand for loading bar
 
     for (const weapon of weapons) {
         await loadObject(weapon.name).then(function (result) {
-            const weaponObject = new Weapon(result);
+            loadedIndex ++;
+            loadingBar.style.width = (loadedIndex / loadedLength) * 100 + '%';
+
             result.scale.set(weapon.scale, weapon.scale, weapon.scale);
+            const weaponObject = new Weapon(result);
             weaponObject.offset = weapon.offset;
             loadedObjects.push(weaponObject);
         });
     }
+
 
     return Promise.all(loadedObjects);
 }
@@ -34,7 +47,6 @@ async function loadObject(path) {
 
     let loadMTLPromise = new Promise(function(resolve, reject){
         async function loadMTLDone(materials) {
-
             materials.preload();
 
             let loadOBJPromise = new Promise(function (resolve, reject) {
@@ -46,6 +58,7 @@ async function loadObject(path) {
 
                 function loadOBJProgress(xhr) {
                     //console.log((xhr.loaded / xhr.total * 100) + '% loaded .obj');
+
                 }
 
                 function loadOBJFailed(error) {
@@ -62,6 +75,7 @@ async function loadObject(path) {
         }
         function loadMTLProgress(xhr){
             //console.log((xhr.loaded / xhr.total * 100) + '% loaded .mtl');
+            //loadingBar.style.width = xhr.loaded / xhr.total * 100 + '%';
         }
         function loadMTLFailed(error) {
             console.log(error);
@@ -102,6 +116,7 @@ class Weapon extends Gameobject {
         super(model);
         this.model.layers.set(1);
         this.matrixAutoUpdate = true;
+        this.recoil = 10;
         this.offset = {
             x: 0,
             y: 0,
@@ -118,6 +133,9 @@ class Weapon extends Gameobject {
         this.velocity.x += -vx * swayConstant;
         this.velocity.y += -vy * swayConstant * 2;
         this.velocity.z += -vz * swayConstant;
+    }
+    fire() {
+        this.sway(0,0,-this.recoil);
     }
     update(dt) {
         super.update(dt);
@@ -171,8 +189,9 @@ class Player extends THREE.LineSegments{
         this.accelleration = 1; //TODO: Fiks accelleration
         this.deaccelleration = 0.18;
         this.maxSpeed = 10;
-        this.jumpSpeed = 4;
+        this.jumpSpeed = 6;
         this.isOnGround = false;
+        this.keys = [];
 
         this.weapon = null;
 
@@ -194,6 +213,7 @@ class Player extends THREE.LineSegments{
         this.add(object);
         this.camera.position.set(this.camOffset.x, this.camOffset.y, this.camOffset.z);
     }
+
     update(dt) {
         { // User inputs
             let sumx = 0.00,
@@ -208,6 +228,7 @@ class Player extends THREE.LineSegments{
                 let name = key[0],
                     pressed = key[1].pressed,
                     newPress = key[1].newPress;
+
                 if (pressed) {
                     if (name === "ArrowUp") {
                         sumz -= 1
@@ -221,14 +242,17 @@ class Player extends THREE.LineSegments{
                     if (name === "ArrowLeft") {
                         sumx -= 1
                     }
+                    key[1].newPress = false;
                 }
                 if (pressed && newPress) {
                     if (name === 'Space' && this.isOnGround) {
                         this.velocity.y += this.jumpSpeed;
-                        console.log('Jump');
                     }
-
+                    if (name === 'MouseLeft') {
+                        this.weapon.fire();
+                    }
                 }
+
             }
 
             this.velocity.x = this.velocity.x * (1 - this.deaccelleration) + (sumx * this.moveSpeed * this.accelleration);
@@ -342,8 +366,14 @@ floor.castShadow = true;
 
 async function setup() {
     loadAssets().then(function (result) {
-        const weapon = result[2];
+        // Close loadingScreen
+        {
+            loadingScreen.style.display = 'collapse';
+            loadingScreen.style.opacity = '0';
+            loadingScreen.style.visibility = 'hidden';
 
+        }
+        const weapon = result[2];
         camera.layers.enable(1);
 
         scene.add(player);
@@ -373,6 +403,7 @@ async function setup() {
         guiCanvas.onclick = function() {
             guiCanvas.requestPointerLock();
         };
+        KEY_LISTENERS.push(player);
 
         // collider2 = new THREEx.Collider.createFromObject3d(cube);
         // onCollideEnter = player.collider.addEventListener('contactEnter', function (otherCollider) {
