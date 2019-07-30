@@ -25,6 +25,40 @@
             color: white;
             font-family: monospace;
         }
+        #loadingScreen {
+            background-color: dimgray;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            align-content: center;
+            justify-items: center;
+            justify-content: center;
+
+            height: 100%;
+            width: 100%;
+            position: fixed;
+            top: 0;
+            left: 0;
+            box-sizing: border-box;
+            overflow: hidden;
+            color: white;
+        }
+        #loadingScreen > p {
+            font-size: 1.2em;
+            font-family: monospace;
+        }
+        #loadingBarContainer {
+            background-color: black;
+            padding: 3px;
+            width: 50%;
+            height: 20px;
+        }
+        #loadingBar {
+            background-color: aqua;
+            height: 100%;
+            width: 1%;
+            transition: 0.1s;
+        }
 
     </style>
     <script src="js/modules/three.js" ></script>
@@ -40,6 +74,12 @@
 
 <canvas id="canv"></canvas>
 <canvas id="guiCanvas"></canvas>
+<div id="loadingScreen">
+    <p>Loading...</p>
+    <div id="loadingBarContainer">
+        <div id="loadingBar"></div>
+    </div>
+</div>
 <p id="debug"></p>
 
 <script src="js/game/elias_gui.js"></script>

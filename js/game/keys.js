@@ -35,6 +35,10 @@ const keys = [
         pressed: false,
         newPress: true
     }]
+    ,['MouseLeft', {
+        pressed: false,
+        newPress: true
+    }]
 ];
 const keysAlternate = {
     'KeyJ' : 'ArrowLeft' ,
@@ -58,20 +62,33 @@ const mouse = {
 
 document.addEventListener('keydown', function (evt) {
     let key = evt.code;
-    //Check alternate keys
     if (keysAlternate.hasOwnProperty(evt.code)) {
         key = keysAlternate[evt.code];
     }
-    //console.log(key, 'pressed');
     for ([keyname,keydata] of keys){
         if(key === keyname){
             keydata.pressed = true;
-            keydata.newPress = false;
-            //console.log(key, 'pressed')
+        }
+    }
+});
+document.addEventListener('mousedown', function (evt) {
+    let key = 'MouseLeft';
+    for ([keyname,keydata] of keys){
+        if(key === keyname){
+            keydata.pressed = true;
         }
     }
 });
 
+document.addEventListener('mouseup', function (evt) {
+    let key = 'MouseLeft';
+    for ([keyname,keydata] of keys){
+        if(key === keyname){
+            keydata.pressed = false;
+            keydata.newPress = true;
+        }
+    }
+});
 
 
 document.addEventListener('keyup', function (evt) {
