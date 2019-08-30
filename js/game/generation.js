@@ -111,13 +111,13 @@ function generateDungeon(seed, settings = GENERATOR_DEFAULT_SETTINGS) {
         // Add walls
         for (let tile of dungeon.floor) {
             for (let coords of [
-                {x: tile.x - 1, y: tile.y,      dir: 0}, // Facing right
-                {x: tile.x + 1, y: tile.y,      dir: 1}, // Facing left
-                {x: tile.x,     y: tile.y - 1,  dir: 2}, // Facing down
-                {x: tile.x,     y: tile.y + 1,  dir: 3}, // Facing up
+                {x: tile.x - 1, y: tile.y,     z: 0, dir: 0}, // Facing right
+                {x: tile.x + 1, y: tile.y,     z: 0, dir: 1}, // Facing left
+                {x: tile.x,     y: tile.y - 1, z: 0, dir: 2}, // Facing down
+                {x: tile.x,     y: tile.y + 1, z: 0, dir: 3}, // Facing up
             ]) {
                 if (!floorOn(coords.x, coords.y)) {
-                    dungeon.walls.push({x: coords.x, y: coords.y, dir: coords.dir});
+                    dungeon.walls.push({x: coords.x, y: coords.y, z: coords.z, dir: coords.dir});
                 }
             }
         }

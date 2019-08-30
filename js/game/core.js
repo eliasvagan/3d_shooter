@@ -51,7 +51,7 @@ async function loadObject(path) {
 
             let loadOBJPromise = new Promise(function (resolve, reject) {
                 function loadOBJDone(object) {
-                    console.log('Successfully loaded from ', path);
+                    // console.log('Successfully loaded from ', path);
                     //object.children[0].material.side = 2;
                     resolve(object);
                 }
@@ -205,7 +205,7 @@ class Player extends THREE.LineSegments{
     }
     setWeapon(weapon) {
        this.weapon = weapon;
-        console.log("Set weapon to", weapon);
+       //console.log("Set weapon to", weapon);
        this.camera.add(weapon.model);
     }
     setCamera(object) {
@@ -297,6 +297,9 @@ class Player extends THREE.LineSegments{
             debug.addText("Player speed X: " + this.velocity.x);
             debug.addText("Player speed Y: " + this.velocity.y);
             debug.addText("Player speed Z: " + this.velocity.z);
+            debug.addText("Player position X: " + this.position.x);
+            debug.addText("Player position Y: " + this.position.y);
+            debug.addText("Player position Z: " + this.position.z);
             debug.addText("Camera rotation X: " + camera.rotation.x);
             debug.addText("Camera rotation Y: " + camera.rotation.y);
             debug.addText("Camera rotation Z: " + camera.rotation.z);
@@ -332,6 +335,43 @@ class Debugger {
     }
 }
 
+function loadLevel(seed) {
+    const scale = 4;
+    const dungeon = generateDungeon(seed);
+    const geom = new THREE.PlaneGeometry(scale,scale,0);
+    const hasCeiling = true;
+    const wallHeight = 1;
+    for (const tile of dungeon.floor) {
+        const tile3d = new THREE.Mesh(geom, materials[0]);
+        tile3d.position.set(tile.x * scale, tile.z * scale , tile.y * scale);
+        tile3d.rotation.set(-Math.PI / 2, 0, 0);
+        scene.add(tile3d);
+        if (hasCeiling) {
+            const tileCeil = new THREE.Mesh(geom, materials[3]);
+            tileCeil.position.set(tile.x * scale, (tile.z + wallHeight) * scale , tile.y * scale);
+            tileCeil.rotation.set(Math.PI / 2, 0, 0);
+            scene.add(tileCeil);
+        }
+    }
+    for (const wall of dungeon.walls) {
+        const wall3d = new THREE.Mesh(
+            new THREE.PlaneGeometry(scale, scale * wallHeight, 0),
+            materials[1]
+        );
+        let offset = {x: 0, y: 0, z: 0.5 * wallHeight};
+        let rotation = 0;
+        switch(wall.dir) {
+            case 0: offset.x =  0.5; rotation =  Math.PI / 2; break;
+            case 1: offset.x = -0.5; rotation = -Math.PI / 2; break;
+            case 2: offset.y =  0.5; rotation = 0           ; break;
+            case 3: offset.y = -0.5; rotation = Math.PI     ; break;
+        }
+        wall3d.position.set((wall.x + offset.x) * scale, (wall.z + offset.z) * scale, (wall.y + offset.y) * scale);
+        wall3d.rotation.set(0, rotation, 0);
+        scene.add(wall3d);
+    }
+}
+
 renderer.setPixelRatio( SETTINGS.renderScale );
 renderer.setSize(window.innerWidth, window.innerHeight);
 guiCanvas.width = window.innerWidth;
@@ -340,10 +380,10 @@ const gui = new GUI(guiCanvas);
 
 
 const materials = [
-    new THREE.MeshBasicMaterial( { color: 0x009023 }),
-    new THREE.MeshBasicMaterial( { color: 0x004545 }),
-
+    new THREE.MeshLambertMaterial( { color: 0x202020 }),
+    new THREE.MeshLambertMaterial( { color: 0x004545 }),
     new THREE.MeshToonMaterial( {color: 0x001010}),
+    new THREE.MeshPhongMaterial({color: 0x303030})
 ];
 const player = new Player();
 
@@ -355,14 +395,7 @@ const cube2 = new THREE.Mesh(
     new THREE.BoxGeometry( 1, 2, 1 )
     , materials[2]
 );
-const floor = new THREE.Mesh(
-    new THREE.PlaneGeometry(5,10,32),
-    materials[2]
-);
 const debug = new Debugger(document.getElementById('debug'));
-
-floor.receiveShadow = true;
-floor.castShadow = true;
 
 async function setup() {
     loadAssets().then(function (result) {
@@ -373,32 +406,44 @@ async function setup() {
             loadingScreen.style.visibility = 'hidden';
 
         }
-        const weapon = result[2];
+        // Load level
+        {
+            const seed = '1194102954224635865693711207655333565708828110232161419435682251143507696248049725972329618274334262';
+            console.log('Seed:',  seed);
+
+            loadLevel(seed);
+        }
+
+        // scene.fog = new THREE.Fog(0x000000, 0, 25);
+        const weapon = result[1];
         camera.layers.enable(1);
 
         scene.add(player);
-        player.position.set(0,1,0);
+        player.position.set(0,10,0).normalize();
         player.setCamera(camera);
         player.setWeapon(weapon);
 
-        floor.rotation.x = -Math.PI / 2;
         cube2.position.y = 0.5;
 
-        var keyLight = new THREE.DirectionalLight(new THREE.Color('hsl(30, 100%, 75%)'), 1.0);
+        const keyLight = new THREE.DirectionalLight(new THREE.Color('hsl(30, 100%, 75%)'), 1.0);
         keyLight.position.set(-100, 0, 100);
 
-        var fillLight = new THREE.DirectionalLight(new THREE.Color('hsl(240, 100%, 75%)'), 0.75);
+        const fillLight = new THREE.DirectionalLight(new THREE.Color('hsl(240, 100%, 75%)'), 0.75);
         fillLight.position.set(100, 0, 100);
 
-        var backLight = new THREE.DirectionalLight(0xffffff, 1.0);
+        const backLight = new THREE.DirectionalLight(0xffffff, 1.0);
         backLight.position.set(100, 0, -100).normalize();
+
+        const playerLight = new THREE.DirectionalLight(0xffffff, 1.0); //todo: FIX
+        playerLight.position.set(15,1,-10);
+        //scene.add(playerLight);
+        player.add(playerLight);
 
         scene.add(keyLight);
         scene.add(fillLight);
         scene.add(backLight);
 
         scene.add(cube2);
-        scene.add(floor);
 
         guiCanvas.onclick = function() {
             guiCanvas.requestPointerLock();
