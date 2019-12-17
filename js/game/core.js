@@ -3,7 +3,7 @@ const SETTINGS =  {
     fov: 80,
     debug: true
 };
-const WEAPONS_DIR = "assets/guns/";
+const WEAPONS_DIR = "/assets/guns/";
 const KEY_LISTENERS = [
     
 ];
@@ -189,7 +189,7 @@ class Player extends THREE.LineSegments{
         this.accelleration = 1; //TODO: Fiks accelleration
         this.deaccelleration = 0.18;
         this.maxSpeed = 10;
-        this.jumpSpeed = 6;
+        this.jumpSpeed = 12;
         this.isOnGround = false;
         this.keys = [];
 
@@ -242,6 +242,7 @@ class Player extends THREE.LineSegments{
                     if (name === "ArrowLeft") {
                         sumx -= 1
                     }
+
                     key[1].newPress = false;
                 }
                 if (pressed && newPress) {
@@ -252,7 +253,6 @@ class Player extends THREE.LineSegments{
                         this.weapon.fire();
                     }
                 }
-
             }
 
             this.velocity.x = this.velocity.x * (1 - this.deaccelleration) + (sumx * this.moveSpeed * this.accelleration);
@@ -462,9 +462,12 @@ async function setup() {
     });
 }
 
-let lastTime = Date.now();
-let dt = 0.0;
-let dtsum = 0.0;
+let globalTime = {
+    lastTime: Date.now(),
+    dt: 0.0,
+    dtSum: 0.0,
+    timeScale: 1.0
+};
 
 function updateCameraRotation(e) {
     const eulerP = new THREE.Euler( 0, 0, 0, 'YXZ' );
@@ -487,19 +490,32 @@ function updateCameraRotation(e) {
 function animate() {
     requestAnimationFrame( animate );
     debug.clear();
-    // TIME
-    dt = Date.now() - lastTime;
-    const fps = Math.floor(1000 / dt);
-    dtsum += dt;
-    if (dtsum > 500) {
-        dtsum = 0;
-        gui.setFps(fps);
 
+    // TIME
+
+    // Global time slow experimenting
+    for (const key of keys) {
+        let name = key[0],
+            pressed = key[1].pressed,
+            newPress = key[1].newPress;
+
+        if (name === "KeyX") {
+            globalTime.timeScale = pressed ? 0.0 : 1.0;
+        }
     }
 
-    lastTime = Date.now();
+    // Global time calculation
+    const fps = Math.floor(1000 / (Date.now() - globalTime.lastTime));
+    globalTime.dt = (Date.now() - globalTime.lastTime) * globalTime.timeScale;
+    globalTime.dtSum += globalTime.dt;
+    if (globalTime.dtSum > 500) {
+        globalTime.dtSum = 0;
+        gui.setFps(fps);
+    }
 
-    player.update(dt / 1000);
+    globalTime.lastTime = Date.now();
+
+    player.update(globalTime.dt / 1000);
     //colliderSystem.computeAndNotify([player.collider, collider2]);
 
     renderer.render(scene, camera);
